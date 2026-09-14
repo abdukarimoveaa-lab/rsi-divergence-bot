@@ -90,7 +90,7 @@ async def scan_once(state):
                 symbols = await scanner.get_usdt_symbols(
                     session,
                     max_symbols=MAX_SYMBOLS,
-                    min_24h_usdt_volume=MIN_24H_USDT_VOLUME,
+                    min_volume=MIN_24H_USDT_VOLUME,
                 )
                 logging.info("%s: %d symbols selected", scanner.name, len(symbols))
 
