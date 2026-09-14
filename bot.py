@@ -122,13 +122,13 @@ async def scan_once(state):
 async def main():
     state = load_state()
     async with aiohttp.ClientSession() as session:
-    await telegram_send(session, "✅ Тест: бот подключён к Telegram")
-    while True:
-        try:
-            await scan_once(state)
-        except Exception:
-            logging.exception("Scan failed")
-        await asyncio.sleep(SCAN_EVERY_MINUTES * 60)
+        await telegram_send(session, "✅ Тест: бот подключён к Telegram")
+        while True:
+            try:
+                await scan_once(state)
+            except Exception:
+                logging.exception("Scan failed")
+            await asyncio.sleep(SCAN_EVERY_MINUTES * 60)
 
 if __name__ == "__main__":
     asyncio.run(main())
