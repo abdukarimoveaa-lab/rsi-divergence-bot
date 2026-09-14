@@ -121,6 +121,8 @@ async def scan_once(state):
 
 async def main():
     state = load_state()
+    async with aiohttp.ClientSession() as session:
+    await telegram_send(session, "✅ Тест: бот подключён к Telegram")
     while True:
         try:
             await scan_once(state)
