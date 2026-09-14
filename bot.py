@@ -82,9 +82,9 @@ def signal_text(s: Signal):
 
 async def scan_once(state):
     scanners = [ExchangeScanner(x) for x in EXCHANGES]
-    all_signals = []
-
-     async with aiohttp.ClientSession() as session:
+    all_signals =[]
+    
+    async with aiohttp.ClientSession() as session:
         for scanner in scanners:
             try:
                 symbols = await scanner.get_usdt_symbols(
