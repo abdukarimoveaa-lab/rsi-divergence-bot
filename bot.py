@@ -102,7 +102,8 @@ async def scan_once(state):
                     )
                     all_signals.extend(signals)
                     logging.info("%s %s: %d signals", scanner.name, tf, len(signals))
-
+                                    except Exception:
+            logging.exception("Scanner failed")
         for s in all_signals:
             key = f"{s.exchange}:{s.symbol}:{s.timeframe}:{s.latest_pivot_ts}"
             if key in state:
