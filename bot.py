@@ -84,11 +84,16 @@ async def scan_once(state):
     scanners = [ExchangeScanner(x) for x in EXCHANGES]
     all_signals = []
 
-    async with aiohttp.ClientSession() as session:
+     async with aiohttp.ClientSession() as session:
         for scanner in scanners:
             try:
-                symbols = await scanner.get_usdt_symbols(session, MIN_24H_USDT_VOLUME, MAX_SYMBOLS)
+                symbols = await scanner.get_usdt_symbols(
+                    session,
+                    max_symbols=MAX_SYMBOLS,
+                    min_24h_usdt_volume=MIN_24H_USDT_VOLUME,
+                )
                 logging.info("%s: %d symbols selected", scanner.name, len(symbols))
+
                 for tf in TIMEFRAMES:
                     signals = await scanner.scan_symbols(
                         session, symbols, tf,
@@ -102,8 +107,10 @@ async def scan_once(state):
                     )
                     all_signals.extend(signals)
                     logging.info("%s %s: %d signals", scanner.name, tf, len(signals))
-                except Exception:
-                logging.exception("Scanner failed")                                
+
+            except Exception:
+                logging.exception("Scanner failed")   
+                                                
         for s in all_signals:
             key = f"{s.exchange}:{s.symbol}:{s.timeframe}:{s.latest_pivot_ts}"
             if key in state:
