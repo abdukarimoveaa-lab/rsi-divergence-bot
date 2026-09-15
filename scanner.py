@@ -50,55 +50,131 @@ def pivot_lows(values, left=3, right=3):
     return out
 
 def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_diff, oversold):
-    # candles sorted oldest -> newest: (ts, open, high, low, close, volume, quote_volume)
+    # candles sorted oldest -> newest:
+    # (ts, open, high, low, close, volume, quote_volume)
+
     if len(candles) < period + left + right + 20:
         return None
+
     closes = [c[4] for c in candles]
     lows = [c[3] for c in candles]
+
     rsi = rsi_wilder(closes, period)
     pivots = pivot_lows(lows, left, right)
-    logging.info(f"DEBUG pivots: candles={len(candles)} pivots={len(pivots)} left={left} right={right}")
+
+    logging.info(
+        "DEBUG pivots: candles=%d pivots=%d left=%d right=%d",
+        len(candles),
+        len(pivots),
+        left,
+        right,
+    )
+
     if len(pivots) < 2:
         return None
 
-    # Use the latest confirmed pivot and compare with the previous pivot.
+    # Последний подтвержденный pivot-low
     b = pivots[-1]
-    a = pivots[-2]
-    print(f"DEBUG gap: a={a} b={b} gap={b-a} max_gap={max_gap}")
-    if b - a > max_gap:
+
+    # Ищем подходящий предыдущий минимум.
+    # Проверяем не только предпоследний pivot, а несколько предыдущих.
+    candidates = []
+
+    for a in reversed(pivots[:-1]):
+        gap = b - a
+
+        if gap > max_gap:
+            break
+
+        price_a = lows[a]
+        price_b = lows[b]
+
+        rsi_a = rsi[a]
+        rsi_b = rsi[b]
+
+        if not (np.isfinite(rsi_a) and np.isfinite(rsi_b)):
+            continue
+
+        lower_low = price_b < price_a * (1 - min_ll_pct / 100)
+        higher_low = rsi_b >= rsi_a + min_rsi_diff
+
+        logging.info(
+            "DEBUG divergence: a=%d b=%d gap=%d "
+            "price %.8f->%.8f lower_low=%s | "
+            "RSI %.1f->%.1f higher_low=%s",
+            a,
+            b,
+            gap,
+            price_a,
+            price_b,
+            lower_low,
+            rsi_a,
+            rsi_b,
+            higher_low,
+        )
+
+        if lower_low and higher_low:
+            candidates.append((a, rsi_b - rsi_a))
+
+    if not candidates:
         return None
 
-    price_a, price_b = lows[a], lows[b]
-    rsi_a, rsi_b = rsi[a], rsi[b]
-    if not (np.isfinite(rsi_a) and np.isfinite(rsi_b)):
-        return None
+    # Если найдено несколько вариантов,
+    # берем самый свежий подходящий предыдущий pivot
+    a = candidates[0][0]
 
-    lower_low = price_b < price_a * (1 - min_ll_pct / 100)
-    higher_low = rsi_b >= rsi_a + min_rsi_diff
-    print(
-    f"DEBUG divergence: "
-    f"price {price_a:.8f}->{price_b:.8f} "
-    f"lower_low={lower_low} | "
-    f"RSI {rsi_a:.1f}->{rsi_b:.1f} "
-    f"higher_low={higher_low} | "
-    f"min_ll={min_ll_pct}% min_rsi_diff={min_rsi_diff}"
-)
-    if not (lower_low and higher_low):
-        return None
+    price_a = lows[a]
+    price_b = lows[b]
+    rsi_a = rsi[a]
+    rsi_b = rsi[b]
 
     current_rsi = float(rsi[-1])
-    oversold_seen = min(float(np.nanmin(rsi[a:b+1])), float(rsi_a), float(rsi_b)) < oversold
-    
+
+    # RSI должен побывать в зоне перепроданности
+    # между двумя минимумами
+    rsi_slice = rsi[a:b + 1]
+    finite_rsi = [float(x) for x in rsi_slice if np.isfinite(x)]
+
+    if not finite_rsi:
+        return None
+
+    oversold_seen = min(finite_rsi) < oversold
+
+    if not oversold_seen:
+        logging.info(
+            "DEBUG rejected: RSI never below %.1f between pivots",
+            oversold,
+        )
+        return None
+
+    # Подтверждение: текущий RSI уже вышел выше уровня oversold
     confirmed = current_rsi > oversold
 
-    # Do not fire a "confirmed" alert if the divergence is already very old.
-    # The pivot must still be within the recent search window.
     latest_ts = int(candles[b][0])
-    current_ts = int(candles[-1][0])
-    latest_pivot_time = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(latest_ts / 1000))
-    previous_pivot_time = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(candles[a][0]) / 1000))
+    latest_pivot_time = time.strftime(
+        "%Y-%m-%d %H:%M UTC",
+        time.gmtime(latest_ts / 1000),
+    )
 
-    quote_volume = float(sum(c[6] for c in candles[-24:])) if len(candles) >= 24 else 0.0
+    previous_pivot_time = time.strftime(
+        "%Y-%m-%d %H:%M UTC",
+        time.gmtime(int(candles[a][0]) / 1000),
+    )
+
+    quote_volume = (
+        float(sum(c[6] for c in candles[-24:]))
+        if len(candles) >= 24
+        else 0.0
+    )
+
+    logging.info(
+        "SIGNAL FOUND: price %.8f -> %.8f | RSI %.1f -> %.1f | current RSI %.1f",
+        price_a,
+        price_b,
+        rsi_a,
+        rsi_b,
+        current_rsi,
+    )
 
     return {
         "pivot_index": b,
@@ -112,10 +188,8 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
             "previous_pivot_time": previous_pivot_time,
             "price": float(candles[-1][4]),
             "quote_volume": quote_volume,
-        }
-    }
-
-class ExchangeScanner:
+        },
+    }class ExchangeScanner:
     def __init__(self, name):
         self.name = name.lower()
 
