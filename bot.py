@@ -45,11 +45,34 @@ def save_state(state):
 
 async def telegram_send(session, text):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "disable_web_page_preview": True}
-    async with session.post(url, json=payload, timeout=20) as r:
-        if r.status != 200:
-            body = await r.text()
-            raise RuntimeError(f"Telegram HTTP {r.status}: {body}")
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+
+    while True:
+        async with session.post(url, json=payload, timeout=20) as r:
+            if r.status == 200:
+                return
+
+            try:
+                body = await r.json()
+            except Exception:
+                body = {"description": await r.text()}
+
+            if r.status == 429:
+                retry_after = body.get("parameters", {}).get("retry_after", 5)
+                logging.warning(
+                    "Telegram rate limit. Waiting %s seconds",
+                    retry_after,
+                )
+                await asyncio.sleep(retry_after + 1)
+                continue
+
+            raise RuntimeError(
+                f"Telegram HTTP {r.status}: {body}"
+            )
 
 def fmt_price(x):
     if x >= 100:
