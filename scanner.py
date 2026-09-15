@@ -54,11 +54,19 @@ def find_divergence(
     rsi_period,
     pivot_left,
     pivot_right,
-    max_gap,
-    min_ll_pct,
-    min_rsi_diff,
-    oversold,
+    max_pivot_gap,
+    min_price_lower_low_pct,
+    min_rsi_higher_low,
+    oversold_rsi,
 ):
+    period = rsi_period
+    left = pivot_left
+    right = pivot_right
+    max_gap = max_pivot_gap
+    min_ll_pct = min_price_lower_low_pct
+    min_rsi_diff = min_rsi_higher_low
+    oversold = oversold_rsi
+
     # candles: oldest -> newest
     # (ts, open, high, low, close, volume, quote_volume)
 
