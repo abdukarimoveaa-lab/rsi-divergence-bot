@@ -136,20 +136,9 @@ def find_divergence(
             if not (lower_low and higher_rsi_low):
                 continue
 
-            # Между минимумами RSI должен побывать
-            # ниже уровня перепроданности
-            rsi_slice = rsi[a:b + 1]
-
-            finite_rsi = [
-                float(x)
-                for x in rsi_slice
-                if np.isfinite(x)
-            ]
-
-            if not finite_rsi:
-                continue
-
-            oversold_seen = min(finite_rsi) < oversold
+            # RSI на ПЕРВОМ минимуме должен быть
+            # непосредственно в зоне перепроданности
+            oversold_seen = rsi_a < oversold
 
             if not oversold_seen:
                 continue
