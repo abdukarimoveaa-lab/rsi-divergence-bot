@@ -78,9 +78,7 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
 
     current_rsi = float(rsi[-1])
     oversold_seen = min(float(np.nanmin(rsi[a:b+1])), float(rsi_a), float(rsi_b)) < oversold
-    if not oversold_seen:
-        return None
-
+    
     confirmed = current_rsi > oversold
 
     # Do not fire a "confirmed" alert if the divergence is already very old.
