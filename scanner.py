@@ -327,87 +327,118 @@ class ExchangeScanner:
     async def get_klines(self, session, symbol, timeframe, limit=220):
         if self.name == "bybit":
             interval = {"1h": "60", "4h": "240", "1d": "D"}[timeframe]
-            data = await self._get_json(session, BYBIT_BASE + "/v5/market/kline", {
-                "category": "linear", "symbol": symbol, "interval": interval, "limit": limit
-            })
+
+            data = await self._get_json(
+                session,
+                BYBIT_BASE + "/v5/market/kline",
+                {
+                    "category": "linear",
+                    "symbol": symbol,
+                    "interval": interval,
+                    "limit": limit,
+                },
+            )
+
             rows = data["result"]["list"]
             rows = list(reversed(rows))
-            return [(int(x[0]), float(x[1]), float(x[2]), float(x[3]), float(x[4]), float(x[5]), float(x[6])) for x in rows]
 
-interval = timeframe
-
-data = await self._get_json(
-    session,
-    BINGX_BASE + "/openApi/swap/v3/quote/klines",
-    {
-        "symbol": symbol,
-        "interval": interval,
-        "limit": limit,
-    }
-)
-
-rows = data.get("data", [])
-
-if not isinstance(rows, list):
-    return []
-
-candles = []
-
-for x in rows:
-    try:
-        if isinstance(x, dict):
-            ts = int(x.get("time", x.get("timestamp", 0)))
-            open_price = float(x["open"])
-            high = float(x["high"])
-            low = float(x["low"])
-            close = float(x["close"])
-            volume = float(x.get("volume", 0))
-
-            quote_volume = float(
-                x.get(
-                    "quoteVolume",
-                    x.get("quoteAssetVolume", volume * close)
+            return [
+                (
+                    int(x[0]),
+                    float(x[1]),
+                    float(x[2]),
+                    float(x[3]),
+                    float(x[4]),
+                    float(x[5]),
+                    float(x[6]),
                 )
-            )
+                for x in rows
+            ]
 
-        elif isinstance(x, (list, tuple)) and len(x) >= 6:
-            ts = int(x[0])
-            open_price = float(x[1])
-            high = float(x[2])
-            low = float(x[3])
-            close = float(x[4])
-            volume = float(x[5])
+        # BingX
+        interval = timeframe
 
-            quote_volume = (
-                float(x[7])
-                if len(x) > 7
-                else volume * close
-            )
-
-        else:
-            continue
-
-        if ts <= 0:
-            continue
-
-        candles.append(
-            (
-                ts,
-                open_price,
-                high,
-                low,
-                close,
-                volume,
-                quote_volume,
-            )
+        data = await self._get_json(
+            session,
+            BINGX_BASE + "/openApi/swap/v3/quote/klines",
+            {
+                "symbol": symbol,
+                "interval": interval,
+                "limit": limit,
+            },
         )
 
-    except (KeyError, TypeError, ValueError):
-        continue
+        rows = data.get("data", [])
 
-candles.sort(key=lambda x: x[0])
+        if not isinstance(rows, list):
+            return []
 
-return candles
+        candles = []
+
+        for x in rows:
+            try:
+                if isinstance(x, dict):
+                    ts = int(
+                        x.get(
+                            "time",
+                            x.get("timestamp", 0),
+                        )
+                    )
+
+                    open_price = float(x["open"])
+                    high = float(x["high"])
+                    low = float(x["low"])
+                    close = float(x["close"])
+                    volume = float(x.get("volume", 0))
+
+                    quote_volume = float(
+                        x.get(
+                            "quoteVolume",
+                            x.get(
+                                "quoteAssetVolume",
+                                volume * close,
+                            ),
+                        )
+                    )
+
+                elif isinstance(x, (list, tuple)) and len(x) >= 6:
+                    ts = int(x[0])
+                    open_price = float(x[1])
+                    high = float(x[2])
+                    low = float(x[3])
+                    close = float(x[4])
+                    volume = float(x[5])
+
+                    quote_volume = (
+                        float(x[7])
+                        if len(x) > 7
+                        else volume * close
+                    )
+
+                else:
+                    continue
+
+                if ts <= 0:
+                    continue
+
+                candles.append(
+                    (
+                        ts,
+                        open_price,
+                        high,
+                        low,
+                        close,
+                        volume,
+                        quote_volume,
+                    )
+                )
+
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        candles.sort(key=lambda x: x[0])
+
+        return candles
 
     async def scan_symbols(self, session, symbols, timeframe, **kwargs):
         sem = asyncio.Semaphore(8 if self.name == "bybit" else 5)
