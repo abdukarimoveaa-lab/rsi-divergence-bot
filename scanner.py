@@ -57,12 +57,14 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
     lows = [c[3] for c in candles]
     rsi = rsi_wilder(closes, period)
     pivots = pivot_lows(lows, left, right)
+    print(f"DEBUG pivots: candles={len(candles)} pivots={len(pivots)} left={left} right={right}")
     if len(pivots) < 2:
         return None
 
     # Use the latest confirmed pivot and compare with the previous pivot.
     b = pivots[-1]
     a = pivots[-2]
+    print(f"DEBUG gap: a={a} b={b} gap={b-a} max_gap={max_gap}")
     if b - a > max_gap:
         return None
 
