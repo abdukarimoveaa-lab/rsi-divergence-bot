@@ -176,7 +176,7 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
         current_rsi,
     )
 
-    return {
+        return {
         "pivot_index": b,
         "signal": {
             "current_rsi": current_rsi,
@@ -189,26 +189,42 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
             "price": float(candles[-1][4]),
             "quote_volume": quote_volume,
         },
-class ExchangeScannerdef 
+    }
+
+
+class ExchangeScanner:
     def __init__(self, name):
         self.name = name.lower()
 
-        async def _get_json(self, session, url, params=None, headers=None): 
-            for attempt in range(3):       
-                try:
-                    async with session.get(url, params=params, headers=headers, timeout=20) as r:
-                        data = await r.json()
-                        if r.status == 200:
-                            return data
-                        if r.status in (429, 418):
-                            await asyncio.sleep(1.5 * (attempt + 1))
-                            continue
-                        raise RuntimeError(f"{self.name} HTTP {r.status}: {data}")
-                except (aiohttp.ClientError, asyncio.TimeoutError):
-                    if attempt == 2:
-                        raise
-                    await asyncio.sleep(1.0 * (attempt + 1))
-            raise RuntimeError("request failed")
+    async def _get_json(self, session, url, params=None, headers=None):
+        for attempt in range(3):
+            try:
+                async with session.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=20
+                ) as r:
+                    data = await r.json()
+
+                    if r.status == 200:
+                        return data
+
+                    if r.status in (429, 418):
+                        await asyncio.sleep(1.5 * (attempt + 1))
+                        continue
+
+                    raise RuntimeError(
+                        f"{self.name} HTTP {r.status}: {data}"
+                    )
+
+            except (aiohttp.ClientError, asyncio.TimeoutError):
+                if attempt == 2:
+                    raise
+
+                await asyncio.sleep(1.0 * (attempt + 1))
+
+        raise RuntimeError("request failed")
 
     async def get_usdt_symbols(self, session, min_volume, max_symbols):
         if self.name == "bybit":
