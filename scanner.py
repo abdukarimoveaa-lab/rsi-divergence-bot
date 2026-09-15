@@ -176,18 +176,18 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
         current_rsi,
     )
     
-return {
-        "pivot_index": b,
-        "signal": {
-            "current_rsi": current_rsi,
-            "previous_rsi": float(rsi_a),
-            "oversold_seen": oversold_seen,
-            "confirmed": confirmed,
-            "latest_pivot_ts": latest_ts,
-            "latest_pivot_time": latest_pivot_time,
-            "previous_pivot_time": previous_pivot_time,
-            "price": float(candles[-1][4]),
-            "quote_volume": quote_volume,
+        return {
+            "pivot_index": b,
+            "signal": {
+                "current_rsi": current_rsi,
+                "previous_rsi": float(rsi_a),
+                "oversold_seen": oversold_seen,
+                "confirmed": confirmed,
+                "latest_pivot_ts": latest_ts,
+                "latest_pivot_time": latest_pivot_time,
+                "previous_pivot_time": previous_pivot_time,
+                "price": float(candles[-1][4]),
+                "quote_volume": quote_volume,
         },
     }
 
