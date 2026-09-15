@@ -176,7 +176,7 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
         current_rsi,
     )
     
-        return {
+return {
         "pivot_index": b,
         "signal": {
             "current_rsi": current_rsi,
