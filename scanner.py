@@ -355,7 +355,14 @@ class ExchangeScanner:
                         latest_pivot_ts=s["latest_pivot_ts"],
                         confirmed=s["confirmed"],
                     )
-                except Exception:
+                except Exception as e:
+                    logging.exception(
+                        "ERROR scanning %s %s %s: %s",
+                        self.name,
+                        symbol,
+                        timeframe,
+                        e,
+                    )
                     return None
 
         results = await asyncio.gather(*(one(s) for s in symbols))
