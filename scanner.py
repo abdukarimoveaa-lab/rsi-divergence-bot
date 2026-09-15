@@ -1,4 +1,4 @@
-import asyncio, math, time
+import asyncio, math, time, logging
 from dataclasses import dataclass
 import aiohttp
 import numpy as np
@@ -57,7 +57,7 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
     lows = [c[3] for c in candles]
     rsi = rsi_wilder(closes, period)
     pivots = pivot_lows(lows, left, right)
-    print(f"DEBUG pivots: candles={len(candles)} pivots={len(pivots)} left={left} right={right}")
+        logging.info(f"DEBUG pivots: candles={len(candles)} pivots={len(pivots)} left={left} right={right}")
     if len(pivots) < 2:
         return None
 
