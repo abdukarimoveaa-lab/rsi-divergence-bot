@@ -73,6 +73,14 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
 
     lower_low = price_b < price_a * (1 - min_ll_pct / 100)
     higher_low = rsi_b >= rsi_a + min_rsi_diff
+    print(
+    f"DEBUG divergence: "
+    f"price {price_a:.8f}->{price_b:.8f} "
+    f"lower_low={lower_low} | "
+    f"RSI {rsi_a:.1f}->{rsi_b:.1f} "
+    f"higher_low={higher_low} | "
+    f"min_ll={min_ll_pct}% min_rsi_diff={min_rsi_diff}"
+)
     if not (lower_low and higher_low):
         return None
 
