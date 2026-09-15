@@ -49,8 +49,17 @@ def pivot_lows(values, left=3, right=3):
             out.append(i)
     return out
 
-def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_diff, oversold):
-    # candles sorted oldest -> newest:
+def find_divergence(
+    candles,
+    period,
+    left,
+    right,
+    max_gap,
+    min_ll_pct,
+    min_rsi_diff,
+    oversold,
+):
+    # candles: oldest -> newest
     # (ts, open, high, low, close, volume, quote_volume)
 
     if len(candles) < period + left + right + 20:
@@ -62,95 +71,133 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
     rsi = rsi_wilder(closes, period)
     pivots = pivot_lows(lows, left, right)
 
-    logging.info(
-        "DEBUG pivots: candles=%d pivots=%d left=%d right=%d",
-        len(candles),
-        len(pivots),
-        left,
-        right,
-    )
-
     if len(pivots) < 2:
         return None
 
-    # Последний подтвержденный pivot-low
-    b = pivots[-1]
+    # Нас интересуют только свежие дивергенции.
+    # Последний минимум дивергенции должен быть не старше 10 свечей.
+    MAX_SIGNAL_AGE = 10
 
-    # Ищем подходящий предыдущий минимум.
-    # Проверяем не только предпоследний pivot, а несколько предыдущих.
     candidates = []
 
-    for a in reversed(pivots[:-1]):
-        gap = b - a
+    # Проверяем несколько последних pivot-low,
+    # а не только самый последний.
+    recent_pivots = pivots[-8:]
 
-        if gap > max_gap:
-            break
+    for b in reversed(recent_pivots):
 
-        price_a = lows[a]
-        price_b = lows[b]
+        signal_age = (len(candles) - 1) - b
 
-        rsi_a = rsi[a]
-        rsi_b = rsi[b]
-
-        if not (np.isfinite(rsi_a) and np.isfinite(rsi_b)):
+        if signal_age > MAX_SIGNAL_AGE:
             continue
 
-        lower_low = price_b < price_a * (1 - min_ll_pct / 100)
-        higher_low = rsi_b >= rsi_a + min_rsi_diff
+        price_b = lows[b]
+        rsi_b = rsi[b]
 
-        logging.info(
-            "DEBUG divergence: a=%d b=%d gap=%d "
-            "price %.8f->%.8f lower_low=%s | "
-            "RSI %.1f->%.1f higher_low=%s",
-            a,
-            b,
-            gap,
-            price_a,
-            price_b,
-            lower_low,
-            rsi_a,
-            rsi_b,
-            higher_low,
-        )
+        if not np.isfinite(rsi_b):
+            continue
 
-        if lower_low and higher_low:
-            candidates.append((a, rsi_b - rsi_a))
+        # Ищем предыдущий минимум перед b
+        for a in reversed(pivots):
+
+            if a >= b:
+                continue
+
+            gap = b - a
+
+            if gap > max_gap:
+                break
+
+            price_a = lows[a]
+            rsi_a = rsi[a]
+
+            if not np.isfinite(rsi_a):
+                continue
+
+            # Цена делает Lower Low
+            lower_low = (
+                price_b
+                < price_a * (1 - min_ll_pct / 100)
+            )
+
+            # RSI делает Higher Low
+            higher_rsi_low = (
+                rsi_b >= rsi_a + min_rsi_diff
+            )
+
+            if not (lower_low and higher_rsi_low):
+                continue
+
+            # Между минимумами RSI должен побывать
+            # ниже уровня перепроданности
+            rsi_slice = rsi[a:b + 1]
+
+            finite_rsi = [
+                float(x)
+                for x in rsi_slice
+                if np.isfinite(x)
+            ]
+
+            if not finite_rsi:
+                continue
+
+            oversold_seen = min(finite_rsi) < oversold
+
+            if not oversold_seen:
+                continue
+
+            current_rsi = float(rsi[-1])
+
+            if not np.isfinite(current_rsi):
+                continue
+
+            # Подтверждение:
+            # RSI сейчас уже выше уровня oversold
+            confirmed = current_rsi > oversold
+
+            if not confirmed:
+                continue
+
+            # Чем свежее сигнал — тем выше приоритет
+            # При равной свежести берем больший рост RSI
+            candidates.append(
+                {
+                    "a": a,
+                    "b": b,
+                    "age": signal_age,
+                    "rsi_diff": float(rsi_b - rsi_a),
+                }
+            )
+
+            # Для этого b достаточно первого подходящего
+            # предыдущего минимума
+            break
 
     if not candidates:
         return None
 
-    # Если найдено несколько вариантов,
-    # берем самый свежий подходящий предыдущий pivot
-    a = candidates[0][0]
+    candidates.sort(
+        key=lambda x: (
+            x["age"],
+            -x["rsi_diff"],
+        )
+    )
+
+    best = candidates[0]
+
+    a = best["a"]
+    b = best["b"]
 
     price_a = lows[a]
     price_b = lows[b]
-    rsi_a = rsi[a]
-    rsi_b = rsi[b]
+
+    rsi_a = float(rsi[a])
+    rsi_b = float(rsi[b])
 
     current_rsi = float(rsi[-1])
 
-    # RSI должен побывать в зоне перепроданности
-    # между двумя минимумами
-    rsi_slice = rsi[a:b + 1]
-    finite_rsi = [float(x) for x in rsi_slice if np.isfinite(x)]
-
-    if not finite_rsi:
-        return None
-
-    oversold_seen = min(finite_rsi) < oversold
-
-    if not oversold_seen:
-        logging.info(
-            "DEBUG rejected: RSI never below %.1f between pivots",
-            oversold,
-        )
-        return None
-
-    # Подтверждение: текущий RSI уже вышел выше уровня oversold
-    confirmed = current_rsi > oversold
-
     latest_ts = int(candles[b][0])
+
     latest_pivot_time = time.strftime(
         "%Y-%m-%d %H:%M UTC",
         time.gmtime(latest_ts / 1000),
@@ -168,21 +215,26 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
     )
 
     logging.info(
-        "SIGNAL FOUND: price %.8f -> %.8f | RSI %.1f -> %.1f | current RSI %.1f",
+        "SIGNAL FOUND | "
+        "price %.8f -> %.8f | "
+        "RSI %.1f -> %.1f | "
+        "current RSI %.1f | "
+        "age %d candles",
         price_a,
         price_b,
         rsi_a,
         rsi_b,
         current_rsi,
+        best["age"],
     )
 
     return {
         "pivot_index": b,
         "signal": {
             "current_rsi": current_rsi,
-            "previous_rsi": float(rsi_a),
-            "oversold_seen": oversold_seen,
-            "confirmed": confirmed,
+            "previous_rsi": rsi_a,
+            "oversold_seen": True,
+            "confirmed": True,
             "latest_pivot_ts": latest_ts,
             "latest_pivot_time": latest_pivot_time,
             "previous_pivot_time": previous_pivot_time,
