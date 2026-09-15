@@ -189,6 +189,7 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
             "price": float(candles[-1][4]),
             "quote_volume": quote_volume,
         },
+    }
     class ExchangeScanner:
     def __init__(self, name):
         self.name = name.lower()
