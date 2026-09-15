@@ -191,11 +191,11 @@ def find_divergence(candles, period, left, right, max_gap, min_ll_pct, min_rsi_d
         },
     }
     class ExchangeScanner:
-    def __init__(self, name):
-        self.name = name.lower()
+        def __init__(self, name):
+            self.name = name.lower()
 
-    async def _get_json(self, session, url, params=None, headers=None):
-        for attempt in range(3):
+        async def _get_json(self, session, url, params=None, headers=None): 
+            for attempt in range(3):       
             try:
                 async with session.get(url, params=params, headers=headers, timeout=20) as r:
                     data = await r.json()
