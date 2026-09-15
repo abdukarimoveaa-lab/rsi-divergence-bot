@@ -52,8 +52,8 @@ def pivot_lows(values, left=3, right=3):
 def find_divergence(
     candles,
     rsi_period,
-    left,
-    right,
+    pivot_left,
+    pivot_right,
     max_gap,
     min_ll_pct,
     min_rsi_diff,
@@ -62,14 +62,14 @@ def find_divergence(
     # candles: oldest -> newest
     # (ts, open, high, low, close, volume, quote_volume)
 
-    if len(candles) < rsi_period + left + right + 20:
+    if len(candles) < rsi_period + pivot_left + pivot_right + 20:
         return None
 
     closes = [c[4] for c in candles]
     lows = [c[3] for c in candles]
 
     rsi = rsi_wilder(closes, rsi_period)
-    pivots = pivot_lows(lows, left, right)
+    pivots = pivot_lows(lows, pivot_left, pivot_right)
 
     if len(pivots) < 2:
         return None
