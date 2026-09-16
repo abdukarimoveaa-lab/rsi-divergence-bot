@@ -50,6 +50,21 @@ def pivot_lows(values, left=3, right=3):
             out.append(i)
     return out
 
+def pivot_highs(values, left=3, right=3):
+    v = np.asarray(values, dtype=float)
+    out = []
+
+    for i in range(left, len(v) - right):
+        window = v[i-left:i+right+1]
+
+        if (
+            np.isfinite(v[i])
+            and v[i] == np.nanmax(window)
+            and np.sum(window == v[i]) == 1
+        ):
+            out.append(i)
+
+    return out
 def find_divergence(
     candles,
     rsi_period,
