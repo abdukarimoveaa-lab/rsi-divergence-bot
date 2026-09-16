@@ -258,6 +258,188 @@ def find_divergence(
     }
 
 
+def find_bearish_divergence(
+    candles,
+    rsi_period,
+    pivot_left,
+    pivot_right,
+    max_pivot_gap,
+    min_price_lower_low_pct,
+    min_rsi_higher_low,
+    oversold_rsi,
+):
+    # Для bearish используем зеркальные уровни:
+    # oversold 30 -> overbought 70
+    overbought_rsi = 100 - oversold_rsi
+
+    # Используем те же минимальные значения:
+    # 0.5% для Higher High
+    # 5 пунктов RSI для Lower High
+    min_hh_pct = min_price_lower_low_pct
+    min_rsi_diff = min_rsi_higher_low
+
+    if len(candles) < rsi_period + pivot_left + pivot_right + 20:
+        return None
+
+    closes = [c[4] for c in candles]
+    highs = [c[2] for c in candles]
+
+    rsi = rsi_wilder(closes, rsi_period)
+    pivots = pivot_highs(highs, pivot_left, pivot_right)
+
+    if len(pivots) < 2:
+        return None
+
+    # Второй максимум должен быть свежим
+    MAX_SIGNAL_AGE = 3
+
+    candidates = []
+    recent_pivots = pivots[-8:]
+
+    for b in reversed(recent_pivots):
+
+        signal_age = (len(candles) - 1) - b
+
+        if signal_age > MAX_SIGNAL_AGE:
+            continue
+
+        price_b = highs[b]
+        rsi_b = rsi[b]
+
+        if not np.isfinite(rsi_b):
+            continue
+
+        # Ищем предыдущий максимум
+        for a in reversed(pivots):
+
+            if a >= b:
+                continue
+
+            gap = b - a
+
+            if gap > max_pivot_gap:
+                break
+
+            price_a = highs[a]
+            rsi_a = rsi[a]
+
+            if not np.isfinite(rsi_a):
+                continue
+
+            # Цена делает Higher High
+            higher_high = (
+                price_b
+                > price_a * (1 + min_hh_pct / 100)
+            )
+
+            # RSI делает Lower High
+            lower_rsi_high = (
+                rsi_b <= rsi_a - min_rsi_diff
+            )
+
+            if not (higher_high and lower_rsi_high):
+                continue
+
+            # RSI на ПЕРВОМ максимуме должен быть >70
+            overbought_seen = rsi_a > overbought_rsi
+
+            if not overbought_seen:
+                continue
+
+            current_rsi = float(rsi[-1])
+
+            if not np.isfinite(current_rsi):
+                continue
+
+            # Подтверждение:
+            # текущий RSI уже вышел ниже 70
+            confirmed = current_rsi < overbought_rsi
+
+            if not confirmed:
+                continue
+
+            candidates.append(
+                {
+                    "a": a,
+                    "b": b,
+                    "age": signal_age,
+                    "rsi_diff": float(rsi_a - rsi_b),
+                }
+            )
+
+            break
+
+    if not candidates:
+        return None
+
+    # Сначала самый свежий сигнал,
+    # затем самый сильный разрыв RSI
+    candidates.sort(
+        key=lambda x: (
+            x["age"],
+            -x["rsi_diff"],
+        )
+    )
+
+    best = candidates[0]
+
+    a = best["a"]
+    b = best["b"]
+
+    price_a = highs[a]
+    price_b = highs[b]
+
+    rsi_a = float(rsi[a])
+    rsi_b = float(rsi[b])
+    current_rsi = float(rsi[-1])
+
+    latest_ts = int(candles[b][0])
+
+    latest_pivot_time = time.strftime(
+        "%Y-%m-%d %H:%M UTC",
+        time.gmtime(latest_ts / 1000),
+    )
+
+    previous_pivot_time = time.strftime(
+        "%Y-%m-%d %H:%M UTC",
+        time.gmtime(int(candles[a][0]) / 1000),
+    )
+
+    quote_volume = (
+        float(sum(c[6] for c in candles[-24:]))
+        if len(candles) >= 24
+        else 0.0
+    )
+
+    logging.info(
+        "BEARISH SIGNAL FOUND | "
+        "price %.8f -> %.8f | "
+        "RSI %.1f -> %.1f | "
+        "current RSI %.1f | "
+        "age %d candles",
+        price_a,
+        price_b,
+        rsi_a,
+        rsi_b,
+        current_rsi,
+        best["age"],
+    )
+
+    return {
+        "pivot_index": b,
+        "signal": {
+            "current_rsi": current_rsi,
+            "previous_rsi": rsi_a,
+            "latest_rsi": rsi_b,
+            "oversold_seen": True,
+            "confirmed": True,
+            "latest_pivot_ts": latest_ts,
+            "latest_pivot_time": latest_pivot_time,
+            "previous_pivot_time": previous_pivot_time,
+            "price": float(candles[-1][4]),
+            "quote_volume": quote_volume,
+        },
+    }
 class ExchangeScanner:
     def __init__(self, name):
         self.name = name.lower()
