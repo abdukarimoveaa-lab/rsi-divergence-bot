@@ -14,6 +14,7 @@ class Signal:
     price: float
     current_rsi: float
     previous_rsi: float
+    latest_rsi: float
     oversold_seen: bool
     quote_volume: float
     previous_pivot_time: str
@@ -230,6 +231,7 @@ def find_divergence(
         "signal": {
             "current_rsi": current_rsi,
             "previous_rsi": rsi_a,
+            "latest_rsi": rsi_b,
             "oversold_seen": True,
             "confirmed": True,
             "latest_pivot_ts": latest_ts,
@@ -443,7 +445,7 @@ class ExchangeScanner:
                     return Signal(
                         exchange=self.name, symbol=symbol, timeframe=timeframe,
                         price=s["price"], current_rsi=s["current_rsi"],
-                        previous_rsi=s["previous_rsi"], oversold_seen=s["oversold_seen"],
+                        previous_rsi=s["previous_rsi"], latest_rsi=s["latest_rsi"],oversold_seen=s["oversold_seen"],
                         quote_volume=s["quote_volume"],
                         previous_pivot_time=s["previous_pivot_time"],
                         latest_pivot_time=s["latest_pivot_time"],
