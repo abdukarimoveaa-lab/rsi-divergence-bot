@@ -89,6 +89,10 @@ def signal_text(s: Signal):
 
     rsi_diff = s.latest_rsi - s.previous_rsi
 
+    tv_symbol = s.symbol.replace("-", "")
+    tv_exchange = "BYBIT" if s.exchange.lower() == "bybit" else "BINGX"
+    tradingview_url = f"https://www.tradingview.com/chart/?symbol={tv_exchange}%3A{tv_symbol}.P"
+    
     return (
         f"{icon} {stage} BULLISH DIVERGENCE\n\n"
         f"Биржа: {s.exchange.upper()}\n"
@@ -107,6 +111,9 @@ def signal_text(s: Signal):
         f"24h объём: ${s.quote_volume:,.0f}\n"
         f"Пивоты: {s.previous_pivot_time} → {s.latest_pivot_time}\n\n"
 
+        f"📊 График TradingView:\n"
+        f"{tradingview_url}\n\n"
+        
         f"⚠️ Это технический сигнал, а не гарантия разворота."
     )
 
