@@ -85,21 +85,28 @@ def fmt_price(x):
 
 def signal_text(s: Signal):
     icon = "🟢" if s.confirmed else "🟡"
-    stage = "ПОДТВЕРЖДЁННАЯ" if s.confirmed else "РАННЯЯ"
+    stage = "ПОДТВЕРЖДЁННАЯ" if s.confirmed else "ФОРМИРУЕТСЯ"
+
+    rsi_diff = s.latest_rsi - s.previous_rsi
+
     return (
         f"{icon} {stage} BULLISH DIVERGENCE\n\n"
         f"Биржа: {s.exchange.upper()}\n"
         f"Монета: {s.symbol}\n"
         f"ТФ: {s.timeframe}\n"
-        f"Цена: {fmt_price(s.price)}\n"
-        f"RSI(14): {s.current_rsi:.1f} {'↑' if s.current_rsi >= s.previous_rsi else '↓'}\n\n"
+        f"Цена: {fmt_price(s.price)}\n\n"
+
         f"Цена: Lower Low ✅\n"
-        f"RSI: Higher Low ✅\n"
-        f"Предыдущий RSI: {s.previous_rsi:.1f}\n"
-        f"RSI в зоне <30: {'✅' if s.oversold_seen else '❌'}\n"
-        f"RSI сейчас >30: {'✅' if s.current_rsi > OVERSOLD_RSI else '❌'}\n"
+        f"RSI: Higher Low ✅\n\n"
+
+        f"RSI первого минимума: {s.previous_rsi:.1f}\n"
+        f"RSI второго минимума: {s.latest_rsi:.1f}\n"
+        f"Разница RSI: {rsi_diff:+.1f}\n"
+        f"RSI сейчас: {s.current_rsi:.1f}\n\n"
+
         f"24h объём: ${s.quote_volume:,.0f}\n"
         f"Пивоты: {s.previous_pivot_time} → {s.latest_pivot_time}\n\n"
+
         f"⚠️ Это технический сигнал, а не гарантия разворота."
     )
 
