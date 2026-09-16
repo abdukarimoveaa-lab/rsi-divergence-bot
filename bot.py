@@ -21,7 +21,7 @@ PIVOT_LEFT = int(os.getenv("PIVOT_LEFT", "3"))
 PIVOT_RIGHT = int(os.getenv("PIVOT_RIGHT", "3"))
 MAX_PIVOT_GAP = int(os.getenv("MAX_PIVOT_GAP", "30"))
 MIN_PRICE_LOWER_LOW_PCT = float(os.getenv("MIN_PRICE_LOWER_LOW_PCT", "0.5"))
-MIN_RSI_HIGHER_LOW = float(os.getenv("MIN_RSI_HIGHER_LOW", "2.0"))
+MIN_RSI_HIGHER_LOW = float(os.getenv("MIN_RSI_HIGHER_LOW", "5.0"))
 OVERSOLD_RSI = float(os.getenv("OVERSOLD_RSI", "30"))
 STATE_FILE = Path(os.getenv("STATE_FILE", "sent_signals.json"))
 
